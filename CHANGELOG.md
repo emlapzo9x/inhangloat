@@ -1,9 +1,5 @@
 # Changelog — In Hàng Loạt by An Duc
 
-Ghi chú: các bản trước khi chương trình được đặt tên chính thức ("In Hàng Loạt
-by An Duc") không có số phiên bản tại thời điểm đó — mình đánh số lại theo mốc
-thời gian phát triển để bạn dễ theo dõi lịch sử.
-
 ## v1.0 — Bản gốc (console script)
 - Script `inpage1-2.py` chạy dòng lệnh thuần, không giao diện.
 - Tự động quét thư mục chứa chính file `.py` (và các thư mục con).
