@@ -1,5 +1,9 @@
 # Changelog — In Hàng Loạt by An Duc
 
+Ghi chú: các bản trước khi chương trình được đặt tên chính thức ("In Hàng Loạt
+by An Duc") không có số phiên bản tại thời điểm đó — mình đánh số lại theo mốc
+thời gian phát triển để bạn dễ theo dõi lịch sử.
+
 ## v1.0 — Bản gốc (console script)
 - Script `inpage1-2.py` chạy dòng lệnh thuần, không giao diện.
 - Tự động quét thư mục chứa chính file `.py` (và các thư mục con).
@@ -84,3 +88,106 @@
   vui lòng chờ..." và đợi luồng in thực sự kết thúc hẳn rồi mới đóng cửa sổ.
 - Thêm cờ chặn cập nhật giao diện khi đang trong quá trình chờ đóng, tránh
   lỗi `TclError` do cập nhật nhầm vào widget đã bị hủy.
+
+## v1.9.1 — Tự sắp xếp thứ tự file + kéo thả tùy chỉnh
+- **Sắp xếp "tự nhiên"** danh sách file trước khi in: đúng thứ tự số
+  (`1, 2, ..., 10`) thay vì so sánh chuỗi thuần (`1, 10, 2`).
+- Thêm khả năng **kéo thả trực tiếp** một dòng trong danh sách ở màn xác nhận
+  để tự sắp xếp lại thứ tự in theo ý muốn, không cần đổi tên file.
+- Sửa lỗi bố cục: dòng gợi ý "Mẹo: kéo thả..." từng bị hiển thị lạc xuống
+  dưới danh sách file do thứ tự `pack()` sai (đúng dạng lỗi từng gặp với
+  thanh cuộn ngang ở bản trước) — đã sửa để hiện phía trên danh sách như dự
+  định ban đầu.
+
+## v2.0 — Số bản in tùy chỉnh + tối ưu in PDF theo từng trình đọc
+- Thêm **số bản in mặc định riêng** cho Excel và PDF (cấu hình ở màn cài đặt).
+- Thêm khả năng **chỉnh số bản in riêng cho từng file** ngay trong danh sách
+  ở màn xác nhận (chọn 1 file, nhập số, bấm "Áp dụng"), ghi đè số mặc định.
+- Excel: dùng thẳng tham số `Copies` của Excel COM để in đúng số bản trong 1
+  lệnh.
+- Thêm lựa chọn ứng dụng dùng để in PDF: Adobe Acrobat/Reader, Foxit
+  Reader/PhantomPDF, hoặc Nitro Pro — các app này hỗ trợ tham số dòng lệnh
+  `/t` để in im lặng thật sự, đáng tin cậy hơn verb "print" mặc định của
+  Windows.
+
+## v2.1 — Sửa lỗi in PDF ra nhiều bản hơn mong muốn, thêm SumatraPDF
+- **Sửa lỗi quan trọng**: PDF bị in ra nhiều bản hơn số bản đã chọn (kể cả khi
+  chỉ chọn in 1 bản). Nguyên nhân gốc: các cách in PDF im lặng (verb "print"
+  của Windows hay switch dòng lệnh của Acrobat/Foxit/Nitro) không có tham số
+  riêng để chỉ định số bản in — chúng luôn in theo đúng số bản đang được lưu
+  sẵn trong driver máy in mặc định (giống ô "Copies" khi in tay). Cách cũ (gọi
+  lại lệnh in N lần liên tiếp) bị nhân đôi khó lường nếu driver đang "dính"
+  sẵn số bản khác 1 từ trước. Sửa bằng cách đặt thẳng số bản vào driver máy in
+  (qua `win32print`) ngay trước khi gửi, rồi chỉ gửi **đúng 1 lệnh in duy
+  nhất** cho mỗi file — giống cách Excel đã làm đúng từ trước (tham số Copies
+  riêng của Excel COM, không phụ thuộc driver nên không dính lỗi này).
+- Đặt lại số bản in của driver về 1 sau khi in xong toàn bộ, để không ảnh
+  hưởng tới các lần in tay khác của người dùng sau này.
+- Thêm **SumatraPDF** vào danh sách ứng dụng hỗ trợ in im lặng qua dòng lệnh
+  (cú pháp riêng khác Acrobat/Foxit/Nitro); có dò thêm các đường dẫn cài đặt
+  phổ biến vì SumatraPDF hay được cài kiểu portable, không phải lúc nào cũng
+  đăng ký trong registry Windows.
+- Chuyển màn hình Cài đặt sang dạng **có thể cuộn dọc**, tránh nội dung bị
+  bóp méo/cắt cụt khi càng thêm nhiều tùy chọn qua các bản sau này.
+
+
+
+## v2.2 — Tách hẳn menu Excel và PDF, bỏ số bản in riêng theo file
+- **Tách hoàn toàn luồng Excel và PDF**: thêm màn hình chọn "File Excel" hoặc
+  "File PDF" ngay sau khi chọn thư mục — chỉ được chọn 1 loại. Sau khi chọn:
+  - Màn cài đặt chỉ hiện đúng các tùy chọn liên quan tới loại đã chọn (chọn
+    Excel thì không còn thấy gì về PDF, và ngược lại).
+  - Bước quét thư mục cũng chỉ lấy đúng loại file đã chọn — loại còn lại bị
+    bỏ qua hoàn toàn ngay từ đầu, không chỉ ẩn trên giao diện.
+- **Bỏ tính năng chỉnh số bản in riêng theo từng file** ở màn xác nhận (panel
+  "Số bản in cho file đã chọn / Áp dụng" đã bị xóa). Giờ chỉ còn 1 ô "Số bản
+  in" duy nhất ở màn cài đặt, áp dụng chung cho mọi file thuộc loại đã chọn.
+- Giữ nguyên tính năng kéo thả sắp xếp thứ tự file ở màn xác nhận.
+
+## v2.3 — Bỏ tính năng chọn app in PDF cụ thể, đơn giản hóa cho ổn định
+- **Bỏ hoàn toàn tính năng chọn ứng dụng in PDF cụ thể** (Acrobat/Foxit/Nitro/
+  SumatraPDF) theo yêu cầu — đây là phần rủi ro nhất trong toàn bộ tính năng
+  in PDF (phụ thuộc dò đường dẫn qua registry có thể sai, và cú pháp dòng lệnh
+  riêng của từng app, đặc biệt Nitro Pro, chưa được xác nhận chắc chắn đúng
+  với mọi phiên bản). Giờ chỉ dùng đúng 1 cách duy nhất: verb "print" mặc định
+  của Windows (giống hệt chuột phải file rồi bấm Print).
+- **Vẫn giữ nguyên** cơ chế đặt số bản in vào driver máy in qua `win32print`
+  (phần đã sửa lỗi "in ra nhiều bản" ở v2.1) — phần này đáng tin cậy, không
+  phụ thuộc app bên thứ 3 nào.
+- **Phát hiện và sửa luôn 1 lỗi nghiêm trọng đang có sẵn từ v2.2**: do sót khi
+  gộp code ở bản trước, hàm `UNG_DUNG_PDF_HO_TRO_IN_LENH` và
+  `tim_duong_dan_ung_dung` bị mất định nghĩa nhưng code vẫn gọi tới — gây
+  crash `NameError` ngay khi in bất kỳ file PDF nào. Việc bỏ tính năng chọn
+  app hôm nay đã giải quyết luôn lỗi này.
+
+## v2.4 — Tự động phát hiện và sửa hướng giấy khi in PDF
+- **Sửa lỗi**: file PDF có nội dung nằm ngang bị in ra co nhỏ, lệch sang 1 góc
+  tờ giấy dọc (do driver máy in mặc định đang để hướng dọc, và verb "print"
+  không tự xoay hướng giấy theo nội dung thật của trang PDF) — trông như file
+  "không in được" dù thực chất vẫn có in, chỉ là sai hướng.
+- Chương trình giờ tự động đọc kích thước trang PDF thực tế (kể cả trường hợp
+  trang bị xoay 90°/270°) để xác định trang đó là dọc hay ngang, rồi đặt đúng
+  hướng giấy vào driver máy in TRƯỚC khi gửi từng lệnh in — áp dụng đúng cho
+  từng file, kể cả khi thư mục có lẫn cả file dọc và file ngang.
+- Giới hạn cần biết: nếu 1 file PDF (không phải khác file, mà ngay bên trong
+  1 file) có trang dọc xen trang ngang, chương trình chỉ xét hướng của trang
+  đầu tiên (hoặc trang đầu tiên trong danh sách trang được chọn) để áp dụng
+  cho cả lệnh in đó — chưa xử lý được việc xoay theo từng trang riêng lẻ trong
+  cùng 1 lệnh in.
+- Gộp việc đặt số bản in và hướng giấy vào driver máy in thành 1 lần mở/đóng
+  driver duy nhất (trước đó là 2 lần riêng biệt) — gọn hơn, giảm số lần truy
+  cập driver không cần thiết.
+- **Sửa lỗi quan trọng khác**: 1 số file PDF nhỏ vẫn bị "miss" (không xác nhận
+  được lệnh in đã vào hàng đợi, dù thực chất máy in không nhận được) — do cơ
+  chế xác nhận ở bản trước chỉ so sánh SỐ LƯỢNG job trong hàng đợi. Nếu job của
+  file trước vừa in xong và rời hàng đợi ĐÚNG LÚC job của file hiện tại vừa
+  được thêm vào, tổng số lượng không đổi khiến chương trình tưởng nhầm là chưa
+  có gì thay đổi. Đã sửa bằng cách so sánh theo **Job ID cụ thể** (mỗi lệnh in
+  luôn được Windows cấp 1 ID mới, không bao giờ trùng lặp) thay vì đếm số
+  lượng — đáng tin cậy hơn hẳn, đặc biệt với các file nhỏ in rất nhanh.
+- **Sửa lỗi "chọn in 1 trang nhưng in cả 2 trang"**: nguyên nhân là ô nhập
+  trang khi chọn "Chỉ in trang chỉ định" có giá trị mặc định là "1,2" — nếu
+  chỉ tích chọn radio mà quên sửa nội dung ô nhập, chương trình vẫn in đúng
+  theo nội dung đang hiển thị (cả 2 trang). Đã đổi giá trị mặc định thành "1",
+  đồng thời thêm dòng cảnh báo rõ ràng ngay trong màn cài đặt để nhắc kiểm tra
+  lại trước khi bấm Tiếp tục.
