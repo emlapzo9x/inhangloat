@@ -197,7 +197,7 @@ Màn cài đặt dùng QScrollArea để cuộn được khi nội dung dài.
 Rà soát và dọn dẹp bản chuyển đổi PyQt6: xóa import thừa không dùng đến (QSizePolicy), thêm ghi chú giấy phép GPL v3 vào docstring đầu file.
 Đã kiểm chứng: luồng nền (threading.Thread + queue.Queue + QTimer poll), cơ chế đóng cửa sổ an toàn khi đang in, và kéo thả sắp xếp danh sách file đều hoạt động đúng — không phát hiện bug chức năng nào.
 
-## v3.2 (PyQt6) — In PDF trực tiếp qua GDI, không qua app ngoài (giải pháp triệt để)
+## v3.2 (PyQt6) — In PDF trực tiếp qua GDI, không qua app ngoài
 Thay đổi kiến trúc lớn: bỏ hoàn toàn cách in PDF cũ (gọi verb "print" của Windows để nhờ ứng dụng đọc PDF mặc định như Edge/Acrobat tự mở và tự in). Giờ chương trình tự render từng trang PDF thành ảnh (qua thư viện PyMuPDF) rồi gửi thẳng cho driver máy in qua GDI — không còn phụ thuộc bất kỳ ứng dụng đọc PDF nào của hệ thống.
 Giải quyết dứt điểm 2 vấn đề cố hữu của cách cũ:
 Miss cả file: cách cũ là lệnh "bắn rồi quên" (fire-and-forget) — nếu app đang bận xử lý file trước, yêu cầu in file tiếp theo có thể bị bỏ qua âm thầm. Cách mới dùng StartDoc/EndDoc đồng bộ, không có khái niệm "bắn rồi quên" nữa.
