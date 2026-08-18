@@ -187,3 +187,21 @@
   theo nội dung đang hiển thị (cả 2 trang). Đã đổi giá trị mặc định thành "1",
   đồng thời thêm dòng cảnh báo rõ ràng ngay trong màn cài đặt để nhắc kiểm tra
   lại trước khi bấm Tiếp tục.
+
+## v3.0 (PyQt6) — Chuyển giao diện từ tkinter sang PyQt6
+Viết lại toàn bộ phần giao diện bằng PyQt6, giữ nguyên 100% phần nghiệp vụ in ấn (Excel COM, xử lý PDF, xác nhận hàng đợi máy in, đặt cấu hình máy in...).
+Kéo thả sắp xếp thứ tự file dùng cơ chế InternalMove có sẵn của QListWidget thay vì tự viết tay như bản tkinter.
+Màn cài đặt dùng QScrollArea để cuộn được khi nội dung dài.
+
+## v3.1 (PyQt6) — Hoàn thiện bản chuyển đổi PyQt6
+Rà soát và dọn dẹp bản chuyển đổi PyQt6: xóa import thừa không dùng đến (QSizePolicy), thêm ghi chú giấy phép GPL v3 vào docstring đầu file.
+Đã kiểm chứng: luồng nền (threading.Thread + queue.Queue + QTimer poll), cơ chế đóng cửa sổ an toàn khi đang in, và kéo thả sắp xếp danh sách file đều hoạt động đúng — không phát hiện bug chức năng nào.
+
+## v3.2 (PyQt6) — In PDF trực tiếp qua GDI, không qua app ngoài (giải pháp triệt để)
+Thay đổi kiến trúc lớn: bỏ hoàn toàn cách in PDF cũ (gọi verb "print" của Windows để nhờ ứng dụng đọc PDF mặc định như Edge/Acrobat tự mở và tự in). Giờ chương trình tự render từng trang PDF thành ảnh (qua thư viện PyMuPDF) rồi gửi thẳng cho driver máy in qua GDI — không còn phụ thuộc bất kỳ ứng dụng đọc PDF nào của hệ thống.
+Giải quyết dứt điểm 2 vấn đề cố hữu của cách cũ:
+Miss cả file: cách cũ là lệnh "bắn rồi quên" (fire-and-forget) — nếu app đang bận xử lý file trước, yêu cầu in file tiếp theo có thể bị bỏ qua âm thầm. Cách mới dùng StartDoc/EndDoc đồng bộ, không có khái niệm "bắn rồi quên" nữa.
+Miss trang: cách cũ phụ thuộc "trí nhớ" cấu hình (khoảng trang, số bản) riêng của từng app đọc PDF, ngoài tầm kiểm soát. Cách mới tự dựng toàn bộ cấu hình in (DEVMODE) cho mỗi lần in mà không đọc/ghi gì vào máy in mặc định của hệ thống — không có "trí nhớ" nào để bị dính.
+Bỏ hẳn dependency pypdf, thay bằng PyMuPDF (fitz) và Pillow (PIL) để đọc/render PDF.
+Bỏ hẳn toàn bộ cơ chế tạo/xóa file PDF tạm (không còn cần trích trang ra file tạm trung gian nữa) — đơn giản hóa đáng kể, giảm nguy cơ lỗi MAX_PATH và rác file tạm đã từng gặp ở các bản trước.
+Không còn cần thay đổi cấu hình máy in MẶC ĐỊNH của hệ thống — loại bỏ hoàn toàn rủi ro ảnh hưởng tới các lần in tay khác của người dùng.
