@@ -1,13 +1,6 @@
 """
-In Hàng Loạt by An Duc v3.2 (Phiên bản PyQt6)
+In Hàng Loạt by An Duc v3.4 (Phiên bản PyQt6)
 Công cụ in hàng loạt file Excel (.xls/.xlsx) và PDF (.pdf) trong 1 thư mục.
-
-LƯU Ý VỀ GIẤY PHÉP: bản này dùng PyQt6 (giấy phép GPL v3). Nếu đóng gói phần
-mềm này mà không mở mã nguồn, về nguyên tắc cần mua license thương mại từ
-Riverbank Computing, hoặc cân nhắc đổi sang PySide6 (cùng là Qt, do chính Qt
-Company phát hành, giấy phép LGPL — dùng miễn phí kể cả cho phần mềm đóng
-nguồn/thương mại). Người dùng bản này đã xác nhận tự chịu trách nhiệm về
-giấy phép.
 """
 
 import gc
@@ -24,7 +17,7 @@ import win32gui
 import win32ui
 import win32con
 import pythoncom
-import fitz  # PyMuPDF — dùng để đọc và render PDF, THAY THẾ hoàn toàn pypdf
+import pymupdf as fitz  # PyMuPDF — tên package mới; giữ alias "fitz" để không phải đổi code bên dưới
 from PIL import Image, ImageWin
 
 import sys
@@ -37,12 +30,11 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QCloseEvent
 
 
-TEN_PROJECT = "In Hàng Loạt by An Duc v3.2"
+TEN_PROJECT = "In Hàng Loạt by An Duc v3.4"
 
 # Hằng số hướng giấy của Windows (winspool.h): 1 = dọc (Portrait), 2 = ngang (Landscape).
 DMORIENT_PORTRAIT = 1
 DMORIENT_LANDSCAPE = 2
-
 
 # =============================================================================
 # LOGIC CORE (Được giữ nguyên hoàn toàn so với phiên bản Tkinter)
@@ -63,6 +55,13 @@ DMORIENT_LANDSCAPE = 2
 # driver máy in qua GDI — toàn bộ quá trình đồng bộ (StartDoc/EndDoc chỉ trả
 # về khi đã xử lý xong), không có khái niệm "bắn rồi quên", và không đọc/ghi
 # gì vào cấu hình mặc định của hệ thống nên không có "trí nhớ" nào để bị dính.
+#
+# LƯU Ý VỀ TRIỂN KHAI: dùng win32gui/win32ui của pywin32 để tạo Device Context
+# tùy chỉnh (chấp nhận truyền vào 1 DEVMODE riêng). 2 module này cần bộ
+# Microsoft Visual C++ Redistributable cài sẵn trên máy chạy .exe — nếu gặp
+# lỗi "DLL load failed while importing win32ui" khi mở app, cài bộ đó tại
+# https://aka.ms/vs/17/release/vc_redist.x64.exe (miễn phí, chính chủ
+# Microsoft) là đủ, không cần build lại gì cả.
 # =============================================================================
 
 def kiem_tra_pdf_huong_ngang(trang) -> bool:
@@ -88,9 +87,9 @@ def in_truc_tiep_qua_gdi(tai_lieu, danh_sach_trang: list, so_ban_in: int, la_nga
 
     Tự dựng 1 DEVMODE (cấu hình máy in: số bản + hướng giấy) HOÀN TOÀN RIÊNG
     cho lần in này qua win32gui.CreateDC(), KHÔNG đọc/ghi vào cấu hình mặc
-    định của hệ thống (khác hẳn cách cũ dùng win32print.SetPrinter) — nên
-    không có rủi ro "dính" cấu hình từ lần in trước, và cũng không làm ảnh
-    hưởng tới các lần in khác (kể cả in tay) sau này trên cùng máy in.
+    định của hệ thống (khác hẳn cách dùng win32print.SetPrinter) — nên không
+    có rủi ro "dính" cấu hình từ lần in trước, và cũng không làm ảnh hưởng
+    tới các lần in khác (kể cả in tay) sau này trên cùng máy in.
 
     Trả về None nếu thành công, hoặc chuỗi mô tả lỗi nếu thất bại.
     """
@@ -113,8 +112,7 @@ def in_truc_tiep_qua_gdi(tai_lieu, danh_sach_trang: list, so_ban_in: int, la_nga
         # Dùng win32gui.CreateDC (không phải win32ui.CreateDC().CreatePrinterDC())
         # vì đây là cách DUY NHẤT trong pywin32 cho phép truyền vào 1 DEVMODE tùy
         # chỉnh khi tạo Device Context — bản CreatePrinterDC() đơn giản hơn không
-        # nhận DEVMODE, sẽ luôn dùng lại cấu hình mặc định hệ thống (chính là gốc
-        # rễ gây lỗi "dính cấu hình" ở cách làm cũ).
+        # nhận DEVMODE, sẽ luôn dùng lại cấu hình mặc định hệ thống.
         hdc_tho = win32gui.CreateDC("WINSPOOL", ten_may_in, devmode)
         hDC = win32ui.CreateDCFromHandle(hdc_tho)
 
@@ -151,13 +149,13 @@ def in_truc_tiep_qua_gdi(tai_lieu, danh_sach_trang: list, so_ban_in: int, la_nga
                 hDC.AbortDoc()
             except Exception:
                 pass
-            return str(e)
+            return f"{type(e).__name__}: {e}"
 
         hDC.EndDoc()
         return None
 
     except Exception as e:
-        return str(e)
+        return f"{type(e).__name__}: {e}"
     finally:
         if hDC is not None:
             try:
@@ -274,6 +272,7 @@ class InPageApp(QMainWindow):
         self._dang_in = False
         self._worker_thread = None
         self._dang_cho_dong_cua_so = False
+        self.danh_sach_loi = []
         self.poll_timer = QTimer(self)
         self.poll_timer.timeout.connect(self._poll_queue)
 
@@ -745,7 +744,23 @@ class InPageApp(QMainWindow):
 
         self.log_box = QListWidget()
         self.log_box.setStyleSheet("font-size: 12px; padding: 5px;")
-        layout.addWidget(self.log_box)
+        layout.addWidget(self.log_box, stretch=2)
+
+        # Khung riêng LIỆT KÊ LỖI — tách hẳn khỏi log chung để không bị bỏ sót
+        # giữa hàng trăm dòng "đã in thành công". Chỉ hiện những file/sheet có
+        # lỗi, đỏ nổi bật, cập nhật ngay khi lỗi phát sinh (không cần đợi in
+        # xong hết mới biết).
+        self.nhan_khung_loi = QLabel("⚠ File/sheet bị lỗi (0):")
+        self.nhan_khung_loi.setStyleSheet("color: #c62828; font-weight: bold;")
+        layout.addWidget(self.nhan_khung_loi)
+
+        self.error_box = QListWidget()
+        self.error_box.setStyleSheet(
+            "QListWidget { background-color: #fdecea; border: 1px solid #c62828; "
+            "font-size: 12px; padding: 5px; color: #b71c1c; }"
+        )
+        self.error_box.setMaximumHeight(140)
+        layout.addWidget(self.error_box, stretch=1)
 
         self.cancel_btn = QPushButton("HỦY TẤT CẢ LỆNH IN")
         self.cancel_btn.setFixedHeight(40)
@@ -764,6 +779,7 @@ class InPageApp(QMainWindow):
 
         self.stop_event.clear()
         self._dang_in = True
+        self.danh_sach_loi = []  # reset danh sách lỗi mỗi lượt in mới
         self._build_progress_ui()
         
         self._worker_thread = threading.Thread(target=self._print_worker, daemon=True)
@@ -786,10 +802,21 @@ class InPageApp(QMainWindow):
                     _, idx, ten_file, trang_thai = msg
                     self.progress.setValue(idx)
                     self.status_label.setText(f"[{idx}/{len(self.danh_sach_file)}] {ten_file}")
-                    self.log_box.addItem(f"{ten_file}  ->  {trang_thai}")
+                    dong_log = f"{ten_file}  ->  {trang_thai}"
+                    self.log_box.addItem(dong_log)
                     if self.log_box.count() > 500:
                         self.log_box.takeItem(0)
                     self.log_box.scrollToBottom()
+
+                    # Nhận diện dòng có lỗi (không phân biệt hoa/thường, vì lỗi cấp
+                    # sheet Excel dùng chữ "lỗi" thường, lỗi cấp file dùng "Lỗi" hoa)
+                    # và đẩy riêng vào khung báo lỗi để không bị chìm trong log chung.
+                    if "lỗi" in trang_thai.lower() or "không có sheet nào" in trang_thai.lower():
+                        self.danh_sach_loi.append(dong_log)
+                        self.error_box.addItem(dong_log)
+                        self.error_box.scrollToBottom()
+                        self.nhan_khung_loi.setText(f"⚠ File/sheet bị lỗi ({len(self.danh_sach_loi)}):")
+
                 elif msg[0] == "done":
                     _, thanh_cong, loi, huy = msg
                     self._dang_in = False
@@ -820,6 +847,23 @@ class InPageApp(QMainWindow):
         lbl_stats.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(lbl_stats)
 
+        # Nếu có lỗi, hiện lại chi tiết ngay tại đây (không chỉ mỗi con số) —
+        # vì màn tiến trình đã bị thay thế, đây là nơi cuối cùng người dùng có
+        # thể xem lại chính xác file/sheet nào lỗi và lý do gì.
+        if self.danh_sach_loi:
+            lbl_loi_tieu_de = QLabel(f"⚠ Chi tiết {len(self.danh_sach_loi)} lỗi:")
+            lbl_loi_tieu_de.setStyleSheet("color: #c62828; font-weight: bold;")
+            layout.addWidget(lbl_loi_tieu_de)
+
+            hop_loi = QListWidget()
+            hop_loi.addItems(self.danh_sach_loi)
+            hop_loi.setStyleSheet(
+                "QListWidget { background-color: #fdecea; border: 1px solid #c62828; "
+                "font-size: 12px; padding: 5px; color: #b71c1c; }"
+            )
+            hop_loi.setMaximumHeight(160)
+            layout.addWidget(hop_loi)
+
         if huy:
             lbl_huy_warn = QLabel("Lưu ý: những file đã gửi lệnh in TRƯỚC KHI bấm hủy\nvẫn có thể đang nằm trong hàng đợi máy in (Print Queue)\nvì lệnh in đã được gửi đi rồi. Hãy mở mục quản lý máy in\ntrong Windows để xóa các lệnh in đó nếu cần.")
             lbl_huy_warn.setStyleSheet("color: #c62828;")
@@ -827,7 +871,7 @@ class InPageApp(QMainWindow):
 
         co_file_pdf = any(p.suffix.lower() == ".pdf" for p in self.danh_sach_file)
         if co_file_pdf:
-            lbl_pdf_warn = QLabel("Lưu ý về file PDF: chương trình gửi lệnh in qua trình đọc PDF\nmặc định của máy (Edge/Acrobat...). Nếu trình đọc đó gặp lỗi nội bộ\nkhi đang in, chương trình sẽ không phát hiện được (do đây là giới hạn\ncủa cơ chế in gián tiếp qua Windows). Vui lòng kiểm tra thực tế bản in.")
+            lbl_pdf_warn = QLabel("Lưu ý về file PDF: chương trình in trực tiếp qua GDI của Windows,\nkhông còn thông qua Edge/Acrobat hay bất kỳ trình đọc PDF nào nữa.\nChương trình không thể xác nhận việc in vật lý đã hoàn tất 100%\n(mực đã ra giấy) — vui lòng kiểm tra thực tế bản in.")
             lbl_pdf_warn.setStyleSheet("color: #666;")
             layout.addWidget(lbl_pdf_warn)
 
@@ -857,6 +901,7 @@ class InPageApp(QMainWindow):
             if reply == QMessageBox.StandardButton.Yes:
                 self.stop_event.set()
                 self._dang_cho_dong_cua_so = True
+                self.poll_timer.stop()
                 self._vo_hieu_hoa_cua_so_dang_dong()
                 self._check_thread_timer.start(200)
                 event.ignore()
@@ -907,6 +952,12 @@ class InPageApp(QMainWindow):
                         f"Lỗi: file chỉ có {tong_trang} trang, không có trang nào trong "
                         f"{danh_sach_trang_nhap} hợp lệ", 0, 1
                     )
+
+            # Phòng trường hợp file PDF rỗng/hỏng (0 trang) — không có bước kiểm
+            # tra này thì tai_lieu[danh_sach_trang[0] - 1] bên dưới sẽ ném
+            # IndexError khó hiểu thay vì 1 dòng lỗi rõ ràng.
+            if not danh_sach_trang:
+                return ("Lỗi: file PDF không có trang nào (có thể bị rỗng hoặc hỏng)", 0, 1)
 
             la_ngang = kiem_tra_pdf_huong_ngang(tai_lieu[danh_sach_trang[0] - 1])
 
