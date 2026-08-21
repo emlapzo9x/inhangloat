@@ -205,3 +205,8 @@ Miss trang: cách cũ phụ thuộc "trí nhớ" cấu hình (khoảng trang, s�
 Bỏ hẳn dependency pypdf, thay bằng PyMuPDF (fitz) và Pillow (PIL) để đọc/render PDF.
 Bỏ hẳn toàn bộ cơ chế tạo/xóa file PDF tạm (không còn cần trích trang ra file tạm trung gian nữa) — đơn giản hóa đáng kể, giảm nguy cơ lỗi MAX_PATH và rác file tạm đã từng gặp ở các bản trước.
 Không còn cần thay đổi cấu hình máy in MẶC ĐỊNH của hệ thống — loại bỏ hoàn toàn rủi ro ảnh hưởng tới các lần in tay khác của người dùng.
+
+## v3.4 (PyQt6) — Thêm khung báo lỗi riêng, sửa lỗi file PDF 0 trang
+Thêm khung báo lỗi riêng biệt ở màn tiến trình (nền đỏ nhạt, viền đỏ, tiêu đề "⚠ File/sheet bị lỗi (N):")
+Sửa lỗi: file PDF 0 trang (rỗng hoặc hỏng) từng gây crash IndexError — giờ báo rõ "Lỗi: file PDF không có trang nào (có thể bị rỗng hoặc hỏng)".
+Mở rộng nhận diện lỗi trong khung báo lỗi, bắt thêm trường hợp hiếm "Không có sheet nào được in" (trước đây chỉ bắt các dòng chứa chữ "lỗi").
